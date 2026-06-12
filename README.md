@@ -85,21 +85,51 @@ for sess in client.list_sessions():                # 只看得到自己的機器
                   variables={"yolo_result": "1"})  # 餵 Switch / {{var}} 模板
 ```
 
-**Outbound**（後端替你輪詢）——掛在節點上的 `OnApiPoll` hook：
+**Outbound — 後端替你輪詢/訂閱**（掛在節點上的 hook）：
 
 ```python
 waiting = Woz("等待製作", loop=True, hooks=[
+    # HTTP 輪詢
     OnApiPoll("https://your-service/jobs/123",
               path="data.status", equals="done", every=2.0,
               write_to="job_status", goto="完成播報"),
+    # 或 WebSocket 串流（後端持續訂閱外部 feed）
+    OnWebSocket("wss://your-service/jobs/123/stream",
+                path="status", equals="done",
+                subscribe={"action": "subscribe"},   # 連上後送一次（可省）
+                write_to="job_status", goto="完成播報"),
 ])
+```
+
+**Inbound 串流**——高頻推送時用持久 WS（取代一次一個 `inject`）：
+
+```python
+async with await client.open_stream(session_id) as stream:
+    await stream.send(variables={"price": 42})     # → VARIABLE switch
+    await stream.send(event="order_ready")         # → OnSensor hook
 ```
 
 注意：會被 hook 中斷的等待節點請用**無台詞的 loop**（有台詞的 loop 會一直
 處於 SPEAKING，sensor hook 會被延後而永遠不觸發）。
 
+## 自訂視覺模型
+
+上傳自己的分類/偵測模型（`.onnx` / `.pt` / `.tflite` …），用 `Vision`
+switch 讓機器人「看當下畫面 → 依標籤分支」：
+
+```python
+model = client.upload_vision_model("origami_step.onnx", name="摺紙判斷",
+                                   model_type="onnx", labels=["step1", "step2"])
+judge = Vision("判斷這步", model=model["id"], threshold=0.7,
+               cases={"step2": ("做對了", correct_node)}, default=retry_node)
+```
+
+進入該節點時後端對機器人鏡頭當下畫面跑模型,取信心值最高且過 threshold
+的標籤跳對應分支,全部低於 threshold 走 default。Teachable Machine 匯出的
+`.tflite` 可直接上傳。
+
 ## 已驗證的環境
 
 從一般使用者環境（容器外的 venv/conda）對 localhost 與公開 prod URL 全程
-驗證過：登入、DSL deploy、WS runtime、HTTP inject。`make e2e-sdk` 是它的
-迴歸測試。
+驗證過：登入、DSL deploy、WS runtime、HTTP/WS inject。`make e2e-sdk` 是
+完整迴歸（HTTP poll、WS subscribe、HTTP inject、WS stream、vision 全涵蓋）。

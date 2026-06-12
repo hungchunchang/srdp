@@ -19,6 +19,49 @@ import websockets
 from .client import SocialRobotClient
 
 
+def _ws_base(base_url: str) -> str:
+    """http(s)://host[/prefix]/api/v1 → ws(s)://host[/prefix]/ws"""
+    return base_url.replace("http", "ws", 1).rsplit("/api/v1", 1)[0] + "/ws"
+
+
+class ExternalStream:
+    """Inbound streaming producer: a persistent authenticated WS to
+    /ws/sessions/{id}/stream for pushing many events/variables into a live
+    session (the streaming version of client.inject). For external systems,
+    NOT the robot client.
+
+        async with await client.open_stream(session_id) as stream:
+            await stream.send(variables={"price": 42})
+            await stream.send(event="order_ready")
+    """
+
+    def __init__(self, ws):
+        self.ws = ws
+
+    @classmethod
+    async def open(cls, client, session_id: str) -> "ExternalStream":
+        url = f"{_ws_base(client.base_url)}/sessions/{session_id}/stream?token={client.token}"
+        ws = await websockets.connect(url, open_timeout=10)
+        return cls(ws)
+
+    async def send(self, event: Optional[str] = None,
+                   variables: Optional[Dict[str, Any]] = None) -> dict:
+        await self.ws.send(json.dumps({"event": event, "variables": variables}))
+        return json.loads(await self.ws.recv())   # per-frame ack
+
+    async def close(self):
+        try:
+            await self.ws.close()
+        except Exception:
+            pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        await self.close()
+
+
 def _data(ev: dict) -> dict:
     return ev.get("data") or {}
 
@@ -60,7 +103,7 @@ class RobotSession:
             char_id = match["id"]
 
         reg = await asyncio.to_thread(client.register_robot, char_id, device_id)
-        ws_base = client.base_url.replace("http", "ws", 1).rsplit("/api/v1", 1)[0] + "/ws"
+        ws_base = _ws_base(client.base_url)
         session = cls(client, reg)
         session.ws = await websockets.connect(f"{ws_base}/{reg['session_id']}", open_timeout=10)
         await session._send_raw("client_ready")

@@ -36,6 +36,12 @@ class SocialRobotClient:
     # ---------- plumbing ----------
 
     @property
+    def token(self) -> str:
+        """The resolved bearer (API key or minted JWT) — used to auth the
+        inbound stream websocket via its ?token= query param."""
+        return self._token
+
+    @property
     def _auth(self) -> Dict[str, str]:
         return {"Authorization": f"Bearer {self._token}"}
 
@@ -95,6 +101,27 @@ class SocialRobotClient:
         r.raise_for_status()
         return r.json()
 
+    def upload_vision_model(self, path: str, name: str, model_type: str = "onnx",
+                            labels: Optional[List[str]] = None) -> dict:
+        """Upload a custom classifier (.onnx/.pt/.tflite/.h5/.weights) for
+        on-demand inference. Returns the VisionModel dict (its ``id`` is what
+        a Vision switch references). `labels` must match the model's output
+        order — they're the values a Vision switch's cases compare against."""
+        import json as _json
+        p = Path(path)
+        with p.open("rb") as f:
+            r = self._http.post(
+                f"{self.base_url}/vision-models/upload", headers=self._auth,
+                data={"name": name, "model_type": model_type,
+                      "labels": _json.dumps(labels or [])},
+                files={"file": (p.name, f, "application/octet-stream")},
+            )
+        r.raise_for_status()
+        return r.json()
+
+    def list_vision_models(self) -> List[dict]:
+        return self._req("GET", "/vision-models/")
+
     # ---------- runtime / sessions ----------
 
     def register_robot(self, character_id: str, device_id: str = "sdk") -> dict:
@@ -107,11 +134,18 @@ class SocialRobotClient:
 
     def inject(self, session_id: str, event: Optional[str] = None,
                variables: Optional[Dict[str, Any]] = None) -> dict:
-        """Push an external result into a live session: variables feed
-        VARIABLE switches / templates; the event fires sensor hooks and
-        SENSOR switches."""
+        """One-shot push into a live session: variables feed VARIABLE
+        switches / templates; the event fires sensor hooks and SENSOR
+        switches. For high-frequency streaming use open_stream()."""
         return self._req("POST", f"/sessions/{session_id}/events",
                          json={"event": event, "variables": variables})
+
+    async def open_stream(self, session_id: str):
+        """Open a persistent inbound stream (await it). Returns an
+        ExternalStream async context manager for pushing many
+        events/variables. See runtime.ExternalStream."""
+        from .runtime import ExternalStream
+        return await ExternalStream.open(self, session_id)
 
     def close(self):
         self._http.close()

@@ -33,6 +33,7 @@ class Hook:
     write_to: Optional[str] = None
     timeout_seconds: Optional[int] = None
     api_config: Optional[dict] = None
+    ws_config: Optional[dict] = None
 
     def compile(self, resolve) -> dict:
         out: Dict[str, Any] = {"trigger": self.trigger}
@@ -46,6 +47,8 @@ class Hook:
             out["timeout_seconds"] = self.timeout_seconds
         if self.api_config:
             out["api_config"] = self.api_config
+        if self.ws_config:
+            out["ws_config"] = self.ws_config
         return out
 
 
@@ -76,6 +79,19 @@ def OnApiPoll(url: str, *, path: str = "", equals: str = "", every: float = 2.0,
     return Hook("api_poll", goto=goto, write_to=write_to, api_config={
         "url": url, "method": method, "json_body": json_body, "headers": headers,
         "poll_interval_seconds": every, "result_path": path, "fire_on_value": equals,
+    })
+
+
+def OnWebSocket(url: str, *, path: str = "", equals: str = "",
+                subscribe: Optional[dict] = None, headers: Optional[dict] = None,
+                goto: NodeRef = None, write_to: Optional[str] = None) -> Hook:
+    """Streaming outbound interrupt: the backend keeps a websocket open to
+    `url` (ws:// or wss://) while the stage is active, optionally sends
+    `subscribe` once on connect, and on each JSON message writes the value
+    at `path` to `write_to` — jumping to `goto` when it equals `equals`."""
+    return Hook("ws_subscribe", goto=goto, write_to=write_to, ws_config={
+        "url": url, "subscribe_message": subscribe, "headers": headers,
+        "result_path": path, "fire_on_value": equals,
     })
 
 
@@ -297,6 +313,44 @@ class Switch(Node):
         return {"switch_config": {
             "condition_type": "variable",
             "variable_name": self.on,
+            "cases": compiled,
+            "default_target_workflow_id": resolve(self.default),
+        }}
+
+
+@dataclass
+class Vision(Node):
+    """Custom-model vision switch: on stage entry the backend runs the
+    uploaded model against the robot's current camera frame (gateway
+    /v1/infer) and branches on the top label above `threshold`; everything
+    below threshold takes `default`.
+
+    `model` is a VisionModel id (from client.upload_vision_model(...)["id"]).
+    `cases` keys are the model's labels.
+    """
+    model: str = ""                          # VisionModel id
+    threshold: float = 0.7
+    #: label → target, or → (display_label, target)
+    cases: Dict[str, Any] = field(default_factory=dict)
+    default: NodeRef = None
+
+    node_type = "switch"
+
+    def transition_config(self, resolve) -> dict:
+        compiled = []
+        for label, spec in self.cases.items():
+            if isinstance(spec, tuple):
+                disp, target = spec
+            else:
+                disp, target = label, spec
+            compiled.append({"label": disp, "match": label,
+                             "target_workflow_id": resolve(target)})
+        return {"switch_config": {
+            "condition_type": "vision",
+            # registration_service reads metadata.model_url (= VisionModel id)
+            # + metadata.threshold; mirrors what SwitchConfigEditor saves.
+            "metadata": {"model_url": self.model, "model_type": "hosted",
+                         "threshold": self.threshold},
             "cases": compiled,
             "default_target_workflow_id": resolve(self.default),
         }}
