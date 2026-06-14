@@ -173,17 +173,24 @@ class Woz(Node):
     loop: bool = False
     idle_expression: Optional[str] = None  # loop-mode idle visual (UUID or Mirror)
     idle_motion: Optional[str] = None
+    # Min seconds per loop iteration before the lines repeat; the stage holds
+    # its last visual silently for the remainder. Stops a loop WoZ from
+    # re-speaking back-to-back (e.g. "比出 N 根手指" while watching the camera).
+    loop_min_seconds: Optional[float] = None
 
     node_type = "woz"
 
     def transition_config(self, resolve) -> dict:
         if not self.loop:
             return {}
-        return {
+        tc: Dict[str, Any] = {
             "loop_mode": True,
             "expression_id": self.idle_expression,
             "motion_id": self.idle_motion,
         }
+        if self.loop_min_seconds is not None:
+            tc["loop_min_seconds"] = self.loop_min_seconds
+        return tc
 
     def post_deploy(self, client, wf_id, resolve):
         if not self.lines:
