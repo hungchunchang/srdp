@@ -398,6 +398,9 @@ class Character:
     nodes: List[Node]
     description: str = ""
     is_public: bool = False
+    #: Let others view the flow read-only (beginner reference). None → defaults
+    #: to is_public, so public demo characters are referenceable out of the box.
+    blocks_public: Optional[bool] = None
     robot_type: str = "kebbi"
 
     def deploy(self, client: SocialRobotClient, replace: bool = True) -> DeployedCharacter:
@@ -410,8 +413,10 @@ class Character:
                 if c["name"] == self.name:
                     client.delete_character(c["id"])
 
-        char = client.create_character(self.name, self.description,
-                                       self.is_public, self.robot_type)
+        char = client.create_character(
+            self.name, self.description, self.is_public, self.robot_type,
+            blocks_public=(self.blocks_public if self.blocks_public is not None else self.is_public),
+        )
         char_id = char["id"]
 
         # Pass 1 — create every workflow (no cross-references yet) to get ids.
