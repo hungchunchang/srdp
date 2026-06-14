@@ -122,6 +122,9 @@ class SocialRobotClient:
     def list_vision_models(self) -> List[dict]:
         return self._req("GET", "/vision-models/")
 
+    def delete_vision_model(self, model_id: str) -> None:
+        self._req("DELETE", f"/vision-models/{model_id}")
+
     # ---------- runtime / sessions ----------
 
     def register_robot(self, character_id: str, device_id: str = "sdk") -> dict:

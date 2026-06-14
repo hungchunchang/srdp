@@ -34,6 +34,7 @@ class Hook:
     timeout_seconds: Optional[int] = None
     api_config: Optional[dict] = None
     ws_config: Optional[dict] = None
+    vision_config: Optional[dict] = None
 
     def compile(self, resolve) -> dict:
         out: Dict[str, Any] = {"trigger": self.trigger}
@@ -49,6 +50,8 @@ class Hook:
             out["api_config"] = self.api_config
         if self.ws_config:
             out["ws_config"] = self.ws_config
+        if self.vision_config:
+            out["vision_config"] = self.vision_config
         return out
 
 
@@ -79,6 +82,21 @@ def OnApiPoll(url: str, *, path: str = "", equals: str = "", every: float = 2.0,
     return Hook("api_poll", goto=goto, write_to=write_to, api_config={
         "url": url, "method": method, "json_body": json_body, "headers": headers,
         "poll_interval_seconds": every, "result_path": path, "fire_on_value": equals,
+    })
+
+
+def OnVision(model: str, fire_on_label: str, *, threshold: float = 0.7,
+             every: float = 1.0, goto: NodeRef = None,
+             write_to: Optional[str] = None) -> Hook:
+    """Vision interrupt: the backend runs the custom vision model `model`
+    (a VisionModel id from client.upload_vision_model(...)["id"]) on the
+    session's live camera frame while the stage is active, writes the
+    top label to `write_to` every round, and jumps to `goto` when it
+    equals `fire_on_label`. The "watch continuously" counterpart to a
+    Vision Switch."""
+    return Hook("vision_detect", goto=goto, write_to=write_to, vision_config={
+        "model_id": model, "fire_on_label": fire_on_label,
+        "threshold": threshold, "poll_interval_seconds": every,
     })
 
 
