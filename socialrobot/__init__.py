@@ -31,7 +31,10 @@ from .builder import (
 from .client import SocialRobotClient
 from .runtime import ExternalStream, RobotSession, SubscribeStream
 
+__version__ = "0.1.0"
+
 __all__ = [
+    "__version__",
     "Agent", "Button", "Character", "DeployedCharacter", "ExternalStream",
     "Hook", "Identify", "Judgment", "Mirror", "Node", "OnApiPoll", "OnFace",
     "OnSensor", "OnTimeout", "OnVision", "OnWebSocket", "RobotSession", "Say",
