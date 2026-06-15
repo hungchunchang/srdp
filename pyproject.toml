@@ -30,8 +30,8 @@ dev = ["build>=1.0", "twine>=5.0"]
 
 [project.urls]
 Homepage = "https://sociallab.duckdns.org/ntu_social_robot/"
-Repository = "https://github.com/hungchunchang/meme"
-Issues = "https://github.com/hungchunchang/meme/issues"
+# Repository / Issues intentionally omitted: the source lives in a private
+# monorepo for now. Add them once the SDK has a public repo (see below).
 
 [build-system]
 requires = ["setuptools>=68"]
