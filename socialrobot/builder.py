@@ -229,15 +229,32 @@ class Judgment:
 
 
 @dataclass
+class DataSource:
+    """One RAG knowledge source. Supply the text directly — pre-extract files /
+    URLs however you like (this is the power-user path)."""
+    name: str = ""
+    text: str = ""
+    kind: str = "text"        # text | file | url
+    enabled: bool = True
+
+    def compile(self) -> dict:
+        import uuid as _uuid
+        return {"id": str(_uuid.uuid4()), "name": self.name, "kind": self.kind,
+                "enabled": self.enabled, "text": self.text, "source_ref": None,
+                "fetched_at": None, "char_count": len(self.text or "")}
+
+
+@dataclass
 class Agent(Node):
     system_prompt: str = ""
-    #: Free-text knowledge base for this node. Retrieved at runtime (local RAG)
-    #: and injected into the prompt. Assemble it however you like — this is the
-    #: power-user path.
+    #: Free-text knowledge base (sugar for a single text data source). Retrieved
+    #: at runtime (local RAG) and injected into the prompt.
     knowledge: str = ""
-    #: How `knowledge` is queried: "keyword" (term overlap, no embedding service)
+    #: How sources are queried: "keyword" (term overlap, no embedding service)
     #: or "embedding" (sentence-T5 cosine via the embed-gateway).
     knowledge_mode: str = "embedding"
+    #: Multiple named knowledge sources. Takes precedence over `knowledge`.
+    data_sources: List[DataSource] = field(default_factory=list)
     llm_model: str = "local_gateway"
     temperature: float = 0.7
     judgments: List[Judgment] = field(default_factory=list)
@@ -250,10 +267,14 @@ class Agent(Node):
         end_conditions = None
         if self.expression_phases:
             end_conditions = {"expression_phases": self.expression_phases}
+        sources = [d.compile() for d in self.data_sources]
+        if not sources and self.knowledge:
+            sources = [DataSource(name="知識", text=self.knowledge).compile()]
         client.put_agent_config(wf_id, {
             "system_prompt": self.system_prompt,
-            "knowledge": self.knowledge or None,
+            "knowledge": None,
             "knowledge_mode": self.knowledge_mode,
+            "data_sources": sources or None,
             "llm_model": self.llm_model,
             "temperature": self.temperature,
             "output_judgments": [j.compile(resolve) for j in self.judgments],
