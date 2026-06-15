@@ -231,10 +231,13 @@ class Judgment:
 @dataclass
 class Agent(Node):
     system_prompt: str = ""
-    #: Free-text knowledge base for this node. Chunked + embedded (sentence-T5)
-    #: and retrieved by cosine similarity at runtime (local RAG); injected into
-    #: the prompt. Assemble it however you like — this is the power-user path.
+    #: Free-text knowledge base for this node. Retrieved at runtime (local RAG)
+    #: and injected into the prompt. Assemble it however you like — this is the
+    #: power-user path.
     knowledge: str = ""
+    #: How `knowledge` is queried: "keyword" (term overlap, no embedding service)
+    #: or "embedding" (sentence-T5 cosine via the embed-gateway).
+    knowledge_mode: str = "embedding"
     llm_model: str = "local_gateway"
     temperature: float = 0.7
     judgments: List[Judgment] = field(default_factory=list)
@@ -250,6 +253,7 @@ class Agent(Node):
         client.put_agent_config(wf_id, {
             "system_prompt": self.system_prompt,
             "knowledge": self.knowledge or None,
+            "knowledge_mode": self.knowledge_mode,
             "llm_model": self.llm_model,
             "temperature": self.temperature,
             "output_judgments": [j.compile(resolve) for j in self.judgments],
