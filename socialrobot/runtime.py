@@ -212,6 +212,20 @@ class RobotSession:
         return await asyncio.to_thread(self.client.inject, self.session_id,
                                        event, variables)
 
+    # ---------- driving ----------
+
+    async def updates(self):
+        """Yield every state_update dict as it arrives — the driver-loop
+        counterpart to expect(). Use one or the other on a given session
+        (both consume the same internal queue).
+
+            async for ev in session.updates():
+                if ev.get("state") == "SPEAKING":
+                    ...
+        """
+        while True:
+            yield await self._queue.get()
+
     # ---------- awaiting ----------
 
     async def expect(self, *, state: Optional[str] = None,
