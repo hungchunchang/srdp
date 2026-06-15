@@ -29,11 +29,11 @@ from .builder import (
     Woz,
 )
 from .client import SocialRobotClient
-from .runtime import ExternalStream, RobotSession
+from .runtime import ExternalStream, RobotSession, SubscribeStream
 
 __all__ = [
     "Agent", "Button", "Character", "DeployedCharacter", "ExternalStream",
     "Hook", "Identify", "Judgment", "Mirror", "Node", "OnApiPoll", "OnFace",
     "OnSensor", "OnTimeout", "OnVision", "OnWebSocket", "RobotSession", "Say",
-    "SocialRobotClient", "Switch", "UI", "Vision", "Woz",
+    "SocialRobotClient", "SubscribeStream", "Switch", "UI", "Vision", "Woz",
 ]

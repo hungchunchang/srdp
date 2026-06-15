@@ -150,6 +150,14 @@ class SocialRobotClient:
         from .runtime import ExternalStream
         return await ExternalStream.open(self, session_id)
 
+    async def subscribe(self, session_id: str):
+        """Open a persistent OUTBOUND stream (await it). Returns a
+        SubscribeStream — `async for ev in stream` yields the robot's events
+        (sensor/client events + state/stage transitions) as dicts. The inverse
+        of open_stream/inject. See runtime.SubscribeStream."""
+        from .runtime import SubscribeStream
+        return await SubscribeStream.open(self, session_id)
+
     def close(self):
         self._http.close()
 

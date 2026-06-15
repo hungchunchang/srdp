@@ -62,6 +62,49 @@ class ExternalStream:
         await self.close()
 
 
+class SubscribeStream:
+    """Outbound robot→external event stream: a persistent authenticated WS to
+    /ws/sessions/{id}/subscribe. Receive-only — `async for event in stream`
+    yields the robot's events as dicts: ``{type:"event", event}`` and
+    ``{type:"state", state, stage_name, stage_mode}``.
+
+        async with await client.subscribe(session_id) as events:
+            async for ev in events:
+                print(ev)
+    """
+
+    def __init__(self, ws):
+        self.ws = ws
+
+    @classmethod
+    async def open(cls, client, session_id: str) -> "SubscribeStream":
+        url = f"{_ws_base(client.base_url)}/sessions/{session_id}/subscribe?token={client.token}"
+        ws = await websockets.connect(url, open_timeout=10)
+        return cls(ws)
+
+    async def close(self):
+        try:
+            await self.ws.close()
+        except Exception:
+            pass
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self) -> dict:
+        try:
+            msg = await self.ws.recv()
+        except Exception:
+            raise StopAsyncIteration
+        return json.loads(msg)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        await self.close()
+
+
 def _data(ev: dict) -> dict:
     return ev.get("data") or {}
 
