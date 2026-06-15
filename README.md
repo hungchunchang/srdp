@@ -9,7 +9,8 @@
 1. **安裝**（任何 Python ≥3.10 環境）：
 
    ```bash
-   pip install -e sdk/        # 從 repo checkout；之後會發佈到 PyPI
+   pip install socialrobot    # 發佈後（PyPI）
+   pip install -e sdk/        # 或從 repo checkout 開發
    ```
 
 2. **取得憑證**——擇一：
@@ -17,9 +18,11 @@
      `srk_` 開頭、只顯示一次，只能存取**你自己**帳號的資源。
    - 或直接用 email + password（SDK 會替你登入換 JWT）。
 
-3. **指向平台**：
+3. **指向平台**——`SocialRobotClient(base_url=…)` **必填指向你自己的部署**：
    - 部署環境：`https://sociallab.duckdns.org/ntu_social_robot/api/v1`
    - 本機開發：`http://localhost:6868/api/v1`
+   - ⚠️ 不傳 `base_url` 時預設是 `http://localhost:6868/api/v1`（只適合本機）；
+     用 `pip install` 在別台機器上跑時，務必傳入你部署的 URL。
 
 4. **寫程式 → deploy → 到網頁看**：deploy 出來的角色就出現在你帳號的
    Dashboard，canvas 上完整可見、可繼續用圖形介面編輯、可在模擬器播放。
