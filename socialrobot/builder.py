@@ -35,6 +35,7 @@ class Hook:
     api_config: Optional[dict] = None
     ws_config: Optional[dict] = None
     vision_config: Optional[dict] = None
+    schedule_config: Optional[dict] = None
 
     def compile(self, resolve) -> dict:
         out: Dict[str, Any] = {"trigger": self.trigger}
@@ -52,6 +53,8 @@ class Hook:
             out["ws_config"] = self.ws_config
         if self.vision_config:
             out["vision_config"] = self.vision_config
+        if self.schedule_config:
+            out["schedule_config"] = self.schedule_config
         return out
 
 
@@ -110,6 +113,28 @@ def OnWebSocket(url: str, *, path: str = "", equals: str = "",
     return Hook("ws_subscribe", goto=goto, write_to=write_to, ws_config={
         "url": url, "subscribe_message": subscribe, "headers": headers,
         "result_path": path, "fire_on_value": equals,
+    })
+
+
+def OnSchedule(goto: NodeRef = None, *, mode: str = "daily",
+               at: Optional[str] = None, date: Optional[str] = None,
+               every_seconds: Optional[int] = None,
+               days_of_week: Optional[list] = None,
+               timezone: str = "Asia/Taipei",
+               write_to: Optional[str] = None) -> Hook:
+    """Wall-clock scheduled interrupt: while the stage is active, fire at a
+    time-of-day / interval and jump to `goto`.
+
+      mode="daily",    at="15:00"                       — every day at 15:00
+      mode="weekly",   at="09:00", days_of_week=[0,2,4] — Mon/Wed/Fri 09:00 (0=Mon)
+      mode="interval", every_seconds=1800               — every 30 min
+      mode="once",     at="14:00", date="2026-07-01"    — once at that instant
+
+    `timezone` is an IANA name (default Asia/Taipei). Put it on a loop/idle WoZ
+    stage; recurrence comes from the flow returning to that stage."""
+    return Hook("schedule", goto=goto, write_to=write_to, schedule_config={
+        "mode": mode, "at": at, "date": date, "every_seconds": every_seconds,
+        "days_of_week": days_of_week or [], "timezone": timezone,
     })
 
 

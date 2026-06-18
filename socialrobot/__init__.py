@@ -19,6 +19,7 @@ from .builder import (
     Node,
     OnApiPoll,
     OnFace,
+    OnSchedule,
     OnSensor,
     OnTimeout,
     OnVision,
@@ -38,6 +39,6 @@ __all__ = [
     "__version__",
     "Agent", "Button", "Character", "DataSource", "DeployedCharacter", "ExternalStream",
     "Hook", "Identify", "Judgment", "Mirror", "Node", "OnApiPoll", "OnFace",
-    "OnSensor", "OnTimeout", "OnVision", "OnWebSocket", "RobotSession", "Say",
+    "OnSchedule", "OnSensor", "OnTimeout", "OnVision", "OnWebSocket", "RobotSession", "Say",
     "SocialRobotClient", "SubscribeStream", "Switch", "UI", "Vision", "Woz",
 ]
