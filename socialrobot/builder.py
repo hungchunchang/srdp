@@ -285,6 +285,8 @@ class Agent(Node):
     judgments: List[Judgment] = field(default_factory=list)
     #: phase → {"mode": "single|random", "expression_ids": [...], "motion_ids": [...]}
     expression_phases: Optional[Dict[str, dict]] = None
+    #: #77 — let end-users set spoken reminders by voice on this AI stage.
+    allow_runtime_authoring: bool = False
 
     node_type = "agent"
 
@@ -303,6 +305,7 @@ class Agent(Node):
             "llm_model": self.llm_model,
             "temperature": self.temperature,
             "output_judgments": [j.compile(resolve) for j in self.judgments],
+            "allow_runtime_authoring": self.allow_runtime_authoring,
             "end_conditions": end_conditions,
             # Hooks live at the workflow level (base_payload). Sending them
             # here too would double-register: the runtime merges
