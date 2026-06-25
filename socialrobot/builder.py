@@ -463,6 +463,12 @@ class Character:
     #: to is_public, so public demo characters are referenceable out of the box.
     blocks_public: Optional[bool] = None
     robot_type: str = "kebbi"
+    #: How external control events reach this character. None/{"mode":"push"} =
+    #: a panel POSTs /sessions/{id}/events (default). {"mode":"subscribe","url":…}
+    #: = the backend holds one session-level ws to the feed and dispatches each
+    #: message as an inbound event (the robot stays passive). url may contain
+    #: {{session_id}}, filled per session at runtime.
+    signal_source: Optional[dict] = None
 
     def deploy(self, client: SocialRobotClient, replace: bool = True) -> DeployedCharacter:
         names = [n.name for n in self.nodes]
@@ -477,6 +483,7 @@ class Character:
         char = client.create_character(
             self.name, self.description, self.is_public, self.robot_type,
             blocks_public=(self.blocks_public if self.blocks_public is not None else self.is_public),
+            **({"signal_source": self.signal_source} if self.signal_source else {}),
         )
         char_id = char["id"]
 
