@@ -177,6 +177,7 @@ class Say:
     motion: Optional[str] = None          # motion UUID
     built_in_motion: Optional[str] = None
     pause: float = 0.0
+    audio: Optional[str] = None           # URL of an audio clip the robot plays on this line (≠ TTS)
 
     def compile(self, order: int) -> dict:
         line: Dict[str, Any] = {"text_content": self.text, "line_order": order,
@@ -189,6 +190,8 @@ class Say:
             line["motion_id"] = self.motion
         if self.built_in_motion:
             line["built_in_motion"] = self.built_in_motion
+        if self.audio:
+            line["audio_clip_url"] = self.audio
         return line
 
 
