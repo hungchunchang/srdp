@@ -109,9 +109,12 @@ class SocialRobotClient:
         import mimetypes
         p = Path(path)
         ctype = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
+        # /uploads/conversation-media is mounted at the HOST root, not under
+        # /api/v1 — so strip the /api/... suffix from base_url.
+        root = self.base_url.rsplit("/api/", 1)[0]
         with p.open("rb") as f:
             r = self._http.post(
-                f"{self.base_url}/uploads/conversation-media", headers=self._auth,
+                f"{root}/uploads/conversation-media", headers=self._auth,
                 files={"file": (p.name, f, ctype)},
             )
         r.raise_for_status()
