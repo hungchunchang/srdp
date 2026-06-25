@@ -136,3 +136,30 @@ judge = Vision("判斷這步", model=model["id"], threshold=0.7,
 從一般使用者環境（容器外的 venv/conda）對 localhost 與公開 prod URL 全程
 驗證過：登入、DSL deploy、WS runtime、HTTP/WS inject。`make e2e-sdk` 是
 完整迴歸（HTTP poll、WS subscribe、HTTP inject、WS stream、vision 全涵蓋）。
+
+## MCP server (drive the platform from a terminal agent)
+
+`socialrobot.mcp_server` exposes the SDK as [MCP](https://modelcontextprotocol.io)
+tools, so an agent (Claude Code, etc.) can run the platform conversationally:
+
+| tool | does |
+|---|---|
+| `list_characters` | your characters (id/name/public) |
+| `list_sessions` | running robot sessions to inject into |
+| `inject_event` | push an event/variables to a live session — `buzz` `{winner}`, `judged` `{result}`, `next_question` `{answer, clip_url}` |
+| `upload_media` | upload an audio/video clip → `{url, signed_url}` |
+| `get_scripts` | read a workflow's WoZ lines (incl. `audio_clip_url`) |
+
+Install + register with Claude Code:
+
+```bash
+pip install "socialrobot[mcp]"     # or: pip install mcp
+claude mcp add socialrobot \
+  -e SOCIALROBOT_API_KEY=srk_… \
+  -e SOCIALROBOT_BASE_URL=https://sociallab.duckdns.org/ntu_social_robot/api/v1 \
+  -- socialrobot-mcp
+```
+
+Auth via `SOCIALROBOT_API_KEY` (an `srk_` developer key — mint in 個人設定 → API key)
+or `SOCIALROBOT_EMAIL` + `SOCIALROBOT_PASSWORD`. The key lives only in the MCP
+process's env, never in tool arguments.

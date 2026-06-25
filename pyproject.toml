@@ -27,6 +27,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["build>=1.0", "twine>=5.0"]
+# MCP server (socialrobot.mcp_server) — drive the platform from a terminal agent.
+mcp = ["mcp>=1.0"]
+
+[project.scripts]
+socialrobot-mcp = "socialrobot.mcp_server:main"
 
 [project.urls]
 Homepage = "https://sociallab.duckdns.org/ntu_social_robot/"
