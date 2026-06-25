@@ -171,6 +171,22 @@ class Node:
 
 
 @dataclass
+class Data(Node):
+    """A non-executable data resource (list / table / dict) referenced by loops
+    and templates — not a stage the robot enters. kind='table' → `value` is a
+    list of row dicts a loop iterates (bind a loop's advance node to it via
+    extra_config={'dataset_binding': {'source': <this node's name>, 'advance_on':
+    '<event>'}})."""
+    kind: str = "table"          # 'list' | 'table' | 'dict'
+    value: Any = None
+
+    node_type = "data"
+
+    def transition_config(self, resolve) -> dict:
+        return {"kind": self.kind, "value": self.value}
+
+
+@dataclass
 class Say:
     text: str
     expression: Optional[str] = None      # expression UUID or Mirror

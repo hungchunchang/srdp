@@ -10,6 +10,7 @@ from .builder import (
     Agent,
     Button,
     Character,
+    Data,
     DataSource,
     DeployedCharacter,
     Hook,
@@ -37,7 +38,7 @@ __version__ = "0.1.0"
 
 __all__ = [
     "__version__",
-    "Agent", "Button", "Character", "DataSource", "DeployedCharacter", "ExternalStream",
+    "Agent", "Button", "Character", "Data", "DataSource", "DeployedCharacter", "ExternalStream",
     "Hook", "Identify", "Judgment", "Mirror", "Node", "OnApiPoll", "OnFace",
     "OnSchedule", "OnSensor", "OnTimeout", "OnVision", "OnWebSocket", "RobotSession", "Say",
     "SocialRobotClient", "SubscribeStream", "Switch", "UI", "Vision", "Woz",
