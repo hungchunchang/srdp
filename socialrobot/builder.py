@@ -469,6 +469,10 @@ class Character:
     #: message as an inbound event (the robot stays passive). url may contain
     #: {{session_id}}, filled per session at runtime.
     signal_source: Optional[dict] = None
+    #: Data-driven loop table: {"rows":[{...vars}], "advance_on":"<event>"}. Row
+    #: vars are injected into the interaction so one authored block serves many
+    #: rows (the advance_on event moves to the next row). Avoids a block per item.
+    dataset: Optional[dict] = None
 
     def deploy(self, client: SocialRobotClient, replace: bool = True) -> DeployedCharacter:
         names = [n.name for n in self.nodes]
@@ -484,6 +488,7 @@ class Character:
             self.name, self.description, self.is_public, self.robot_type,
             blocks_public=(self.blocks_public if self.blocks_public is not None else self.is_public),
             **({"signal_source": self.signal_source} if self.signal_source else {}),
+            **({"dataset": self.dataset} if self.dataset else {}),
         )
         char_id = char["id"]
 
