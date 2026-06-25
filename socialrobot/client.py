@@ -101,6 +101,22 @@ class SocialRobotClient:
         r.raise_for_status()
         return r.json()
 
+    def upload_media(self, path: str) -> dict:
+        """Upload an audio/video media file (mp3/m4a/wav/ogg/webm/mp4) to the
+        platform's media store. Returns ``{"url", "signed_url"}`` — use
+        ``signed_url`` for a client to fetch/play it (e.g. a WoZ line's
+        ``Say(audio=...)`` / an injected ``{{clip_url}}``)."""
+        import mimetypes
+        p = Path(path)
+        ctype = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
+        with p.open("rb") as f:
+            r = self._http.post(
+                f"{self.base_url}/uploads/conversation-media", headers=self._auth,
+                files={"file": (p.name, f, ctype)},
+            )
+        r.raise_for_status()
+        return r.json()
+
     def upload_vision_model(self, path: str, name: str, model_type: str = "onnx",
                             labels: Optional[List[str]] = None) -> dict:
         """Upload a custom classifier (.onnx/.pt/.tflite/.h5/.weights) for
