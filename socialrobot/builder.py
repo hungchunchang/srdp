@@ -36,11 +36,16 @@ class Hook:
     ws_config: Optional[dict] = None
     vision_config: Optional[dict] = None
     schedule_config: Optional[dict] = None
+    match_variable: Optional[str] = None   # value condition: fire only when…
+    match_value: Optional[str] = None      # …session var `match_variable` == this
 
     def compile(self, resolve) -> dict:
         out: Dict[str, Any] = {"trigger": self.trigger}
         if self.sensor_name:
             out["sensor_name"] = self.sensor_name
+        if self.match_variable:
+            out["match_variable"] = self.match_variable
+            out["match_value"] = self.match_value
         if self.goto is not None:
             out["target_workflow_id"] = resolve(self.goto)
         if self.write_to:
@@ -63,11 +68,15 @@ def OnFace(goto: NodeRef = None, write_to: Optional[str] = None) -> Hook:
 
 
 def OnSensor(name: Optional[str] = None, goto: NodeRef = None,
-             write_to: Optional[str] = None) -> Hook:
+             write_to: Optional[str] = None, when_var: Optional[str] = None,
+             equals: Optional[str] = None) -> Hook:
     """Fires on any injected/sensor event (name=None) or that exact event
     name — including events pushed by external programs via
-    POST /sessions/{id}/events."""
-    return Hook("sensor", goto=goto, sensor_name=name, write_to=write_to)
+    POST /sessions/{id}/events. With `when_var`/`equals` it also gates on a
+    value: fires only when session variable `when_var` == `equals` — a Switch
+    case expressed as an interrupt (e.g. judged where result==correct → 答對)."""
+    return Hook("sensor", goto=goto, sensor_name=name, write_to=write_to,
+                match_variable=when_var, match_value=equals)
 
 
 def OnTimeout(seconds: int, goto: NodeRef = None) -> Hook:
