@@ -3,7 +3,7 @@
     from socialrobot import (
         SocialRobotClient, Character, Woz, Say, Agent, Judgment,
         UI, Button, Identify, Switch, Vision, Mirror,
-        OnFace, OnSensor, OnTimeout, OnApiPoll, OnVision, RobotSession,
+        OnEvent, OnFace, OnSensor, OnTimeout, OnApiPoll, OnVision, RobotSession,
     )
 """
 from .builder import (
@@ -19,6 +19,7 @@ from .builder import (
     Mirror,
     Node,
     OnApiPoll,
+    OnEvent,
     OnFace,
     OnSchedule,
     OnSensor,
@@ -40,6 +41,6 @@ __all__ = [
     "__version__",
     "Agent", "Button", "Character", "Data", "DataSource", "DeployedCharacter", "ExternalStream",
     "Hook", "Identify", "Judgment", "Mirror", "Node", "OnApiPoll", "OnFace",
-    "OnSchedule", "OnSensor", "OnTimeout", "OnVision", "OnWebSocket", "RobotSession", "Say",
+    "OnEvent", "OnSchedule", "OnSensor", "OnTimeout", "OnVision", "OnWebSocket", "RobotSession", "Say",
     "SocialRobotClient", "SubscribeStream", "Switch", "UI", "Vision", "Woz",
 ]
