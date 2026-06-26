@@ -79,14 +79,16 @@ def OnSensor(name: Optional[str] = None, goto: NodeRef = None,
                 match_variable=when_var, match_value=equals)
 
 
-def OnEvent(name: Optional[str] = None, goto: NodeRef = None,
-            write_to: Optional[str] = None, when_var: Optional[str] = None,
-            equals: Optional[str] = None) -> Hook:
-    """Fires when a named event is PUSHED in — a control panel / external program
-    POSTing /sessions/{id}/events (NOT a physical sensor). Same matching as
-    OnSensor (event name + optional `when_var`/`equals` value gate); use this when
-    the source is a controller/message so the flow reads honestly."""
-    return Hook("event", goto=goto, sensor_name=name, write_to=write_to,
+def OnWs(name: Optional[str] = None, goto: NodeRef = None,
+         write_to: Optional[str] = None, when_var: Optional[str] = None,
+         equals: Optional[str] = None) -> Hook:
+    """Fires when a named signal is PUSHED in over the session websocket — a
+    control panel / external program sending {event, variables} on
+    WS /ws/sessions/{id}/stream (or POST /sessions/{id}/events). NOT a physical
+    sensor. Same matching as OnSensor (signal name + optional `when_var`/`equals`
+    value gate); use this for a controller/message source (e.g. the buzzer panel:
+    OnWs("buzz"), OnWs("judged", when_var="result", equals="correct"))."""
+    return Hook("ws", goto=goto, sensor_name=name, write_to=write_to,
                 match_variable=when_var, match_value=equals)
 
 
