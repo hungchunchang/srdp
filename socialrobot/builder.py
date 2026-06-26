@@ -234,7 +234,9 @@ class Say:
     motion: Optional[str] = None          # motion UUID
     built_in_motion: Optional[str] = None
     pause: float = 0.0
-    audio: Optional[str] = None           # URL of an audio clip the robot plays on this line (≠ TTS)
+    audio: Optional[str] = None           # asset:<id> / {{col}} / url of a clip the robot plays (≠ TTS)
+    expression_var: Optional[str] = None  # RobotPerform per-row: a {{col}} resolving to an expression NAME
+    motion_var: Optional[str] = None      # RobotPerform per-row: a {{col}} resolving to a motion NAME
 
     def compile(self, order: int) -> dict:
         line: Dict[str, Any] = {"text_content": self.text, "line_order": order,
@@ -249,6 +251,10 @@ class Say:
             line["built_in_motion"] = self.built_in_motion
         if self.audio:
             line["audio_clip_url"] = self.audio
+        if self.expression_var:
+            line["expression_var"] = self.expression_var
+        if self.motion_var:
+            line["motion_var"] = self.motion_var
         return line
 
 
