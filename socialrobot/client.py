@@ -50,6 +50,17 @@ class SocialRobotClient:
         r.raise_for_status()
         return r.json() if r.content else None
 
+    # ---------- audio assets (素材庫) ----------
+
+    def list_audio_assets(self) -> List[dict]:
+        return self._req("GET", "/audio-assets")
+
+    def create_audio_asset(self, name: str, url: str, duration_seconds: float = None) -> dict:
+        """Register an existing /uploads url as a named audio asset; reference it
+        from a WoZ line / data cell as ``asset:<returned id>``."""
+        return self._req("POST", "/audio-assets",
+                         json={"name": name, "url": url, "duration_seconds": duration_seconds})
+
     # ---------- characters ----------
 
     def list_characters(self) -> List[dict]:
