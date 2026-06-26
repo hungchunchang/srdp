@@ -194,18 +194,37 @@ class Node:
 
 @dataclass
 class Data(Node):
-    """A non-executable data resource (list / table / dict) referenced by loops
-    and templates — not a stage the robot enters. kind='table' → `value` is a
-    list of row dicts a loop iterates (bind a loop's advance node to it via
-    extra_config={'dataset_binding': {'source': <this node's name>, 'advance_on':
-    '<event>'}})."""
+    """A non-executable data node holding one or more NAMED structures (list /
+    table / dict) referenced by loops and templates — not a stage the robot
+    enters. A loop's advance node binds to a structure BY NAME via
+    extra_config={'dataset_binding': {'source': '<structure name>', 'advance_on':
+    '<event>'}}.
+
+    Single-structure sugar — the node's own name names the structure::
+
+        Data("題庫", kind="table", value=rows)        # one structure named 題庫
+
+    Multiple structures in one node::
+
+        Data("題庫", structures=[
+            {"name": "簡單題", "kind": "table", "value": easy},
+            {"name": "困難題", "kind": "table", "value": hard},
+        ])
+    """
     kind: str = "table"          # 'list' | 'table' | 'dict'
     value: Any = None
+    structures: Optional[List[dict]] = None  # [{name, kind, value}]; overrides kind/value
 
     node_type = "data"
 
     def transition_config(self, resolve) -> dict:
-        return {"kind": self.kind, "value": self.value}
+        if self.structures:
+            return {"structures": [
+                {"name": s.get("name") or self.name,
+                 "kind": s.get("kind", "table"), "value": s.get("value")}
+                for s in self.structures
+            ]}
+        return {"structures": [{"name": self.name, "kind": self.kind, "value": self.value}]}
 
 
 @dataclass
