@@ -2,7 +2,10 @@
 
 You author a NAO character in meme's web editor; this bridge registers a meme
 `RobotSession` and renders each `state_update` on the NAO via the qi SDK:
-  - down: SPEAKING `text` → `ALTextToSpeech.say`; `motion` → a NAO gesture.
+  - down: SPEAKING `text` → `ALTextToSpeech.say`; `motor_keyframes` (already
+          retargeted server-side to NAO's native joints/radians, see
+          topologies/nao.json) → per-joint `ALMotion.setAngles`, else
+          `motion` → a named NAO gesture fallback.
   - up:   mic/console input → ASR → `session.send_event("asr_input", text)`,
           which drives meme's AI node; its reply comes back as SPEAKING.
 
@@ -29,12 +32,18 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import time
 
 try:
     from socialrobot import RobotSession, SocialRobotClient
 except ImportError:  # running straight from the repo
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
     from socialrobot import RobotSession, SocialRobotClient
+
+
+# fractionMaxSpeed for ALMotion.setAngles; matches topologies/nao.json's
+# speed_default (the same value the backend retargeter assumes for NAO).
+NAO_DEFAULT_SPEED = 0.2
 
 
 # ── NAO body (qi) ───────────────────────────────────────────────────────────
@@ -68,6 +77,36 @@ class NaoBody:
         except Exception as e:
             print(f"[nao] gesture {name!r} failed: {e}")
 
+    def play_keyframes(self, keyframes: list[dict]) -> None:
+        """Play server-retargeted NAO-native motor keyframes — already
+        converted to ALMotion joint names + radians by
+        motion_mapping/retarget_stage3.py against topologies/nao.json, so no
+        unit conversion happens here (unlike Kebbi's degrees). Each keyframe
+        is applied via `setAngles` at its `time` offset from motion start;
+        only the motors it lists move (partial keyframes), mirroring the
+        app's KebbiMotionPlayer. Blocks for the motion's total duration, like
+        `say`, so the caller can ack tts_finished once playback is done."""
+        t_prev = 0.0
+        for kf in keyframes:
+            try:
+                t = float(kf.get("time", 0.0))
+                motors = kf.get("motors") or {}
+                names = list(motors.keys())
+                angles = [float(v) for v in motors.values()]
+            except (TypeError, ValueError) as e:
+                print(f"[nao] keyframe malformed, skipping: {e}")
+                continue
+            wait = t - t_prev
+            if wait > 0:
+                time.sleep(wait)
+            t_prev = t
+            if not motors:
+                continue
+            try:
+                self.motion.setAngles(names, angles, NAO_DEFAULT_SPEED)
+            except Exception as e:
+                print(f"[nao] keyframe @ {t}s failed: {e}")
+
 
 class DryRunBody:
     """Used when qi isn't available (any dev machine): print what NAO would do.
@@ -79,6 +118,9 @@ class DryRunBody:
 
     def gesture(self, name: str) -> None:
         print(f"🤖 NAO would gesture: {name}")
+
+    def play_keyframes(self, keyframes: list[dict]) -> None:
+        print(f"🤖 NAO would play {len(keyframes)} motor keyframe(s)")
 
 
 def make_nao_body():
@@ -104,7 +146,13 @@ async def drive_down(session: RobotSession, nao) -> None:
         for line in lines:
             if line:
                 nao.say(line)
-        if data.get("motion"):
+        # Prefer precise per-joint keyframes when the backend retargeted this
+        # motion to NAO's native motors; fall back to the named gesture.
+        # Never both (mirrors the app's RobotViewModel.kt).
+        keyframes = data.get("motor_keyframes")
+        if keyframes:
+            nao.play_keyframes(keyframes)
+        elif data.get("motion"):
             nao.gesture(data["motion"])
         # Ack the chunk so meme's WoZ/AI advances (mirrors app/simulator).
         if lines:
