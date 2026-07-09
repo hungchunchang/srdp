@@ -10,7 +10,7 @@ You author a NAO character in meme's web editor; this bridge registers a meme
           which drives meme's AI node; its reply comes back as SPEAKING.
 
 The ecrobot server is bypassed — meme is the sole brain. Runs on the NAO
-machine (the `nao` env: qi + `pip install socialrobot pyaudio`). Off-NAO it
+machine (the `nao` env: qi + `pip install srdp pyaudio`). Off-NAO it
 falls back to a dry-run body that just prints, so you can test the meme side
 anywhere.
 

@@ -1,5 +1,5 @@
 [project]
-name = "socialrobot"
+name = "srdp"
 version = "0.1.0"
 description = "Python SDK for the Social Robot Platform — build characters in code (Builder DSL) and drive live robots (Runtime client)."
 readme = "README.md"

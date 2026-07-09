@@ -1,4 +1,4 @@
-# socialrobot — Social Robot Platform Python SDK
+# srdp — Social Robot Platform Python SDK
 
 用 Python 程式碼設計角色（取代/搭配視覺化 canvas），並驅動、監看正在執行的機器人。
 
@@ -9,9 +9,13 @@
 1. **安裝**（任何 Python ≥3.10 環境）：
 
    ```bash
-   pip install socialrobot    # 發佈後（PyPI）
+   pip install srdp           # 發佈後（PyPI）— `socialrobot` 這個名稱已被佔用，改用 srdp
    pip install -e sdk/        # 或從 repo checkout 開發
    ```
+
+   > **PyPI 套件名稱是 `srdp`，但 import 名稱維持 `socialrobot` 不變**：
+   > `pip install srdp` 之後，程式裡還是 `import socialrobot`（下面所有範例都是）。
+   > 只有發佈到 PyPI 用的名字換了，API 完全沒變。
 
 2. **取得憑證**——擇一：
    - **API key（建議）**：登入網頁 → 右上角使用者設定 → API Key → 產生。
@@ -153,7 +157,7 @@ tools, so an agent (Claude Code, etc.) can run the platform conversationally:
 Install + register with Claude Code:
 
 ```bash
-pip install "socialrobot[mcp]"     # or: pip install mcp
+pip install "srdp[mcp]"     # or: pip install mcp
 claude mcp add socialrobot \
   -e SOCIALROBOT_API_KEY=srk_… \
   -e SOCIALROBOT_BASE_URL=https://sociallab.duckdns.org/ntu_social_robot/api/v1 \

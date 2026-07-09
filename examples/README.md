@@ -64,7 +64,7 @@ via `inject`, if ecrobot exposes them.)
 
 ```bash
 # On the NAO machine (the `nao` env has qi):
-pip install socialrobot pyaudio
+pip install srdp pyaudio
 export SR_BASE_URL="http://<host>:6868/api/v1"
 export SR_API_KEY="srk_..."
 export NAO_CHARACTER="NAO 教學助理"     # id or name authored in meme

@@ -5,6 +5,11 @@ All notable changes to the `socialrobot` SDK. Format loosely follows
 
 ## [Unreleased]
 
+### Changed
+- PyPI distribution renamed `socialrobot` → `srdp` (the `socialrobot` name was
+  already taken on PyPI). The import package is unchanged — `pip install srdp`,
+  then `import socialrobot` as before.
+
 ## [0.1.0] — 2026-06-15
 First packaged release (PyPI-ready).
 
