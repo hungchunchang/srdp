@@ -1,17 +1,17 @@
 [project]
-name = "srdp"
-version = "0.1.0"
-description = "Python SDK for the Social Robot Platform — build characters in code (Builder DSL) and drive live robots (Runtime client)."
+name = "socialrobot"
+version = "0.6.0"
+description = "Python runtime client for the Social Robot Platform — connect a robot body (NAO, Pi, any Python process) to a live session and drive it."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Hung-Chun Chang", email = "jonathanchang9@gmail.com" }]
 keywords = ["social robot", "robotics", "wizard-of-oz", "woz", "kebbi", "nao", "hri", "sdk"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -28,18 +28,20 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["build>=1.0", "twine>=5.0"]
 # MCP server (socialrobot.mcp_server) — drive the platform from a terminal agent.
-mcp = ["mcp>=1.0"]
+# <2: mcp 2.x renamed FastMCP to MCPServer; mcp_server.py is written against 1.x.
+mcp = ["mcp>=1.0,<2"]
 
 [project.scripts]
+socialrobot = "socialrobot.cli:main"
 socialrobot-mcp = "socialrobot.mcp_server:main"
 
 [project.urls]
 Homepage = "https://sociallab.duckdns.org/ntu_social_robot/"
-# Repository / Issues intentionally omitted: the source lives in a private
-# monorepo for now. Add them once the SDK has a public repo (see below).
+Repository = "https://github.com/hungchunchang/srdp"
+Issues = "https://github.com/hungchunchang/srdp/issues"
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]

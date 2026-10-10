@@ -8,13 +8,17 @@ You author a NAO character in meme's web editor; this bridge registers a meme
           `motion` → a named NAO gesture fallback.
   - up:   mic/console input → ASR → `session.send_event("asr_input", text)`,
           which drives meme's AI node; its reply comes back as SPEAKING.
+          A reply only comes back while the flow sits on an AI node (or a
+          Compose node in LLM voice mode): on a scripted node the transcript
+          is recorded and used as a sensor (variables / `asr_input` hooks),
+          deliberately without a reply.
 
 The ecrobot server is bypassed — meme is the sole brain. Runs on the NAO
-machine (the `nao` env: qi + `pip install srdp pyaudio`). Off-NAO it
+machine (the `nao` env: qi + `pip install socialrobot pyaudio`). Off-NAO it
 falls back to a dry-run body that just prints, so you can test the meme side
 anywhere.
 
-    export SR_BASE_URL="http://<host>:6868/api/v1"
+    export SR_BASE_URL="https://<host>/ntu_social_robot/api/v1"
     export SR_API_KEY="srk_..."             # web: 個人設定 → API Key
     export NAO_CHARACTER="NAO 教學助理"      # character id or name (authored in meme)
     export NAO_IP="127.0.0.1"               # used only when qi is available
@@ -174,10 +178,32 @@ async def drive_up_console(session: RobotSession) -> None:
             await session.send_event("asr_input", text)
 
 
+def _mic_may_open(session: RobotSession) -> bool:
+    """Whether the server says this robot may hear right now.
+
+    Every `state_update` carries `mic_open` — the backend's ONE verdict
+    (voice_policy.mic_should_be_open), which is False while the robot is
+    SPEAKING because its own TTS plays outside the echo canceller's reference
+    signal. A client that recognizes speech OFF-BOX, like this bridge, is the
+    one transcript ingress the backend cannot gate for you: send it a
+    transcript of the robot's own line and you can walk a loop node out of
+    itself. So honour the stamp. Absent (an older server) ⇒ True, matching
+    every other "the client didn't say" default.
+    """
+    for event in reversed(session.events):
+        data = event.get("data") or {}
+        if "mic_open" in data:
+            return bool(data["mic_open"])
+    return True
+
+
 async def drive_up_mic(session: RobotSession) -> None:
     """NAO/computer mic → ASR → asr_input. ASR is pluggable: posts captured
     audio to SR_ASR_URL and expects {"text": "..."}. Adjust to your ASR's
-    contract. Needs `pip install pyaudio` and SR_ASR_URL set."""
+    contract. Needs `pip install pyaudio` and SR_ASR_URL set.
+
+    Captured windows are DISCARDED while the server says the mic is shut —
+    see `_mic_may_open`."""
     import io
     import wave
 
@@ -193,8 +219,14 @@ async def drive_up_mic(session: RobotSession) -> None:
     try:
         async with httpx.AsyncClient(timeout=15) as http:
             while True:
+                open_before = _mic_may_open(session)
                 frames = [await asyncio.to_thread(stream.read, chunk, exception_on_overflow=False)
                           for _ in range(int(rate / chunk * seconds))]
+                # Asked at BOTH ends of the window: this loop has no VAD, so a
+                # line the robot began and finished inside one four-second
+                # capture would look clean to a check at either end alone.
+                if not (open_before and _mic_may_open(session)):
+                    continue  # the robot was talking over this window
                 buf = io.BytesIO()
                 with wave.open(buf, "wb") as wf:
                     wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(rate)
@@ -209,17 +241,25 @@ async def drive_up_mic(session: RobotSession) -> None:
 
 
 async def main() -> int:
-    base = os.getenv("SR_BASE_URL", "http://localhost:6868/api/v1")
+    base = os.getenv("SR_BASE_URL")
     key = os.getenv("SR_API_KEY")
     character = os.getenv("NAO_CHARACTER")
-    if not key or not character:
-        sys.exit("Set SR_API_KEY (srk_…) and NAO_CHARACTER (id or name).")
+    if not base or not key or not character:
+        sys.exit("Set SR_BASE_URL (…/api/v1), SR_API_KEY (srk_…) and NAO_CHARACTER (id or name).")
 
     client = SocialRobotClient(base_url=base, api_key=key)
     nao = make_nao_body()
     up = drive_up_mic if os.getenv("SR_INPUT") == "mic" else drive_up_console
 
-    async with await RobotSession.start(client, character, device_id="nao-bridge") as session:
+    # robot_type="nao" is load-bearing, not decoration: it is resolved through
+    # the server's robot-profile catalog into this session's `device_hardware`,
+    # so the backend retargets motions through topologies/nao.json (NAO joint
+    # names, radians) instead of falling back to the character's design-time
+    # type. Without it a character authored as 'kebbi' hands this bridge Kebbi
+    # `MOTOR_*` names in degrees, straight into an `ALMotion.setAngles` that
+    # wants NAO joints in radians.
+    async with await RobotSession.start(client, character, device_id="nao-bridge",
+                                        robot_type="nao") as session:
         print(f"Bridge live: meme session {session.session_id} → NAO ({nao.kind}). Ctrl+C to stop.")
         try:
             await asyncio.gather(drive_down(session, nao), up(session))

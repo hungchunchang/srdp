@@ -11,7 +11,7 @@ address. Auth is a developer API key (`srk_…`, generate it on the web under
 個人設定 → API Key) — the same key the Android app's "API Key" login accepts.
 
     pip install opencv-python httpx
-    export SR_BASE_URL="http://<tailnet-ip-or-host>:6868/api/v1"
+    export SR_BASE_URL="http://<tailnet-ip-or-host>:<backend port>/api/v1"
     export SR_API_KEY="srk_..."
     # optional: target a specific session; otherwise the first live one is used
     export SR_SESSION_ID="..."
@@ -19,7 +19,7 @@ address. Auth is a developer API key (`srk_…`, generate it on the web under
 
 Robot side: give the character a stage whose hook reacts to the injected
 events — see README.md for the Builder-DSL snippet, e.g.
-    Woz("待命", loop=True, idle_expression=Mirror,
+    Script("待命", loop=True, idle_expression=Mirror,
         hooks=[OnSensor("person_arrived", goto="打招呼")])
 """
 from __future__ import annotations
@@ -59,10 +59,10 @@ def _pick_session(client: SocialRobotClient) -> str:
 
 
 def main() -> int:
-    base_url = os.getenv("SR_BASE_URL", "http://localhost:6868/api/v1")
+    base_url = os.getenv("SR_BASE_URL")
     api_key = os.getenv("SR_API_KEY")
-    if not api_key:
-        sys.exit("Set SR_API_KEY to a srk_… developer key (web: 個人設定 → API Key).")
+    if not base_url or not api_key:
+        sys.exit("Set SR_BASE_URL (…/api/v1) and SR_API_KEY to a srk_… developer key (web: 個人設定 → API Key).")
 
     client = SocialRobotClient(base_url=base_url, api_key=api_key)
     session_id = _pick_session(client)

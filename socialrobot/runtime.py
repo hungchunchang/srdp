@@ -1,7 +1,7 @@
 """Runtime client — register a robot session and drive it over the same
 WebSocket the simulator/app use.
 
-    client = SocialRobotClient(api_key="srk_…")
+    client = SocialRobotClient(base_url="https://<host>/api/v1", api_key="srk_…")
     async with await RobotSession.start(client, "Museum Guide") as s:
         await s.send_face(embedding=[0.1] * 128)
         ev = await s.expect(state="UI", timeout=10)
@@ -130,9 +130,20 @@ class RobotSession:
 
     @classmethod
     async def start(cls, client: SocialRobotClient,
-                    character: Union[str, dict], device_id: str = "sdk") -> "RobotSession":
+                    character: Union[str, dict], device_id: str = "sdk",
+                    robot_type: Optional[str] = None) -> "RobotSession":
         """`character` is a character id, a character dict, or a name
-        (resolved against the caller's character list + public ones)."""
+        (resolved against the caller's character list + public ones).
+
+        `robot_type` names the robot model THIS process is driving, and is
+        resolved through the server's profile catalog into the registration's
+        `device_hardware` block (see `SocialRobotClient.device_hardware_for`).
+        Leave it None for a plain script with no body — the server then knows
+        not to send it per-joint `motor_keyframes` it cannot play. A bridge
+        that really does drive a robot MUST name it, or the server falls back
+        to the character's design-time type and retargets for the wrong
+        machine.
+        """
         char_id = None
         if isinstance(character, dict):
             char_id = character["id"]
@@ -145,10 +156,14 @@ class RobotSession:
                 raise ValueError(f"character {character!r} not found")
             char_id = match["id"]
 
-        reg = await asyncio.to_thread(client.register_robot, char_id, device_id)
+        reg = await asyncio.to_thread(client.register_robot, char_id, device_id, robot_type)
         ws_base = _ws_base(client.base_url)
         session = cls(client, reg)
-        session.ws = await websockets.connect(f"{ws_base}/{reg['session_id']}", open_timeout=10)
+        ws_url = f"{ws_base}/{reg['session_id']}"
+        ticket = reg.get("ws_ticket")
+        if ticket:
+            ws_url += f"?ticket={ticket}"
+        session.ws = await websockets.connect(ws_url, open_timeout=10)
         await session._send_raw("client_ready")
         session._reader_task = asyncio.create_task(session._reader())
         return session

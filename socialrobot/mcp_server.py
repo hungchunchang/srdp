@@ -5,8 +5,9 @@ the platform conversationally: list characters/sessions, **inject events** into 
 live session (buzzer / quiz control), upload media clips, and read a flow.
 
 Config via env:
-  SOCIALROBOT_BASE_URL   default http://localhost:6868/api/v1
-                         (prod: https://sociallab.duckdns.org/ntu_social_robot/api/v1)
+  SOCIALROBOT_BASE_URL   required, ends in /api/v1, e.g.
+                         https://sociallab.duckdns.org/ntu_social_robot/api/v1
+                         (no default: on the lab box localhost:6868 is prod)
   SOCIALROBOT_API_KEY    an `srk_…` developer key (preferred), OR
   SOCIALROBOT_EMAIL + SOCIALROBOT_PASSWORD
 
@@ -35,7 +36,7 @@ mcp = FastMCP("socialrobot")
 
 def _client() -> SocialRobotClient:
     return SocialRobotClient(
-        base_url=os.environ.get("SOCIALROBOT_BASE_URL", "http://localhost:6868/api/v1"),
+        base_url=os.environ.get("SOCIALROBOT_BASE_URL"),
         api_key=os.environ.get("SOCIALROBOT_API_KEY"),
         email=os.environ.get("SOCIALROBOT_EMAIL"),
         password=os.environ.get("SOCIALROBOT_PASSWORD"),
@@ -93,6 +94,10 @@ def get_scripts(workflow_id: str) -> list:
 
 
 def main() -> None:
+    if not os.environ.get("SOCIALROBOT_BASE_URL"):
+        # Fail at start, where `claude mcp add` shows it — not on the first tool call.
+        raise SystemExit("Set SOCIALROBOT_BASE_URL (ends in /api/v1), e.g. "
+                         "https://sociallab.duckdns.org/ntu_social_robot/api/v1")
     mcp.run()
 
 
