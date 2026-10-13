@@ -16,6 +16,7 @@ has no refresh cookie, so it skips this entirely.
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -32,7 +33,8 @@ _KEY_PAGE = "網頁 › 個人設定 › 機器人與金鑰 › 開發者 API �
 _BASE_URL_HELP = (
     "結尾是 /api/v1，例如 https://sociallab.duckdns.org/ntu_social_robot/api/v1"
     "（實驗室的部署）或 http://localhost:<埠>/api/v1（你自己用 make up 起的 dev stack）。"
-    "沒有預設值：在實驗室那台主機上，localhost:6868 就是正式站"
+    "沒有預設值：在實驗室那台主機上，localhost:6868 就是正式站。"
+    "不帶參數時讀環境變數 SR_BASE_URL"
 )
 
 
@@ -127,6 +129,13 @@ class SocialRobotClient:
         timeout: float = 30.0,
         mfa_code: Optional[str] = None,
     ):
+        # Nothing passed → the same two variables the `socialrobot` command
+        # reads, so a key exported once serves every script. Still no default
+        # URL: an unset SR_BASE_URL is refused like a missing argument.
+        if base_url is None:
+            base_url = os.environ.get("SR_BASE_URL") or None
+        if api_key is None and not (email and password):
+            api_key = os.environ.get("SR_API_KEY") or None
         self.base_url = _check_base_url(base_url)
         self._http = httpx.Client(timeout=timeout)
         if api_key:
@@ -159,7 +168,7 @@ class SocialRobotClient:
             # instead of at whatever the script happened to call first.
             self.whoami()
         else:
-            raise ValueError("要給 api_key，或 email＋password")
+            raise ValueError("要給 api_key（或環境變數 SR_API_KEY），或 email＋password")
 
     def _raise_for(self, r: httpx.Response) -> None:
         if r.is_error:
@@ -404,6 +413,24 @@ class SocialRobotClient:
         self._req("DELETE", f"/vision-models/{model_id}")
 
     # ---------- runtime / sessions ----------
+
+    # ---------- 程式節點 ----------
+
+    def programs(self) -> List[str]:
+        """The step names connected for this account right now (any machine)."""
+        return list(self._req("GET", "/programs").get("steps") or [])
+
+    def serve(self, handlers: Dict[str, Any], *, reconnect: bool = True) -> None:
+        """Answer 程式節點 calls until Ctrl-C: ``{"挑下一題": fn}``. Each fn gets
+        a `ProgramCall` (`.variables`, `.node`, `.session_id`) and returns an
+        `Answer` (or a dict / an exit string / None); it may be async. See
+        `socialrobot.program`."""
+        import asyncio
+        from .program import serve_async
+        try:
+            asyncio.run(serve_async(self, handlers, reconnect=reconnect))
+        except KeyboardInterrupt:
+            pass
 
     def robot_profiles(self) -> dict:
         """The platform's robot-model catalog: `{default, profiles: [...]}`.

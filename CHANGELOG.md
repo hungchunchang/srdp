@@ -5,6 +5,25 @@ All notable changes to the `socialrobot` SDK. Format loosely follows
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-10-13
+
+### Added
+- **程式節點** — `client.serve({"step": fn})` answers a node that asks your own program while the robot runs (`WS /ws/programs`, dialled out with your key: no public URL). `fn(call)` gets `call.variables` / `.node` / `.session_id` and returns an `Answer(exit=, say=, variables=)`, a dict, an exit string or `None`; it may be async; an exception becomes a no-reply carrying its text. Reconnects after a drop.
+- **`Program(name, step=, exits=, otherwise=, no_reply=, seconds=)`** — the node in a flow: waits silently, routes on the answer's exit, `no_reply` when the program is not running, too slow or raised.
+- **`client.programs()`** — the step names connected for your account now.
+
+### Changed
+- `Flow` no longer gives a silent ∞ loop node (a wait, a `Program`) a 正常結束: it never ends by itself, its rows are its only ways out.
+
+## [0.7.0] — 2026-10-13
+
+### Added
+- **`Flow`** — write a flow like a program: `with f.If(...)` / `Elif` / `Else`, `with f.Repeat(n, counter=, until=)`, `with f.While(...)`, `with f.ForEach("structure")`, `f.then(node)` and `NEXT` for a button's or a hook's goto. The blocks decide at RUN time: they compile to silent nodes with 進入時 (`OnEnter`) rows the platform evaluates while the robot runs, so the editor shows and edits them. Conditions are `var("x") == "v"` and `>`/`>=`/`<`/`<=` (numeric, the other side may be `var(...)`); `!=` compiles to two rows. Python's own `if`/`and`/`not` on a condition raises, saying why.
+- **`SocialRobotClient()` reads `SR_BASE_URL` / `SR_API_KEY`** when nothing is passed, like the `socialrobot` command. Passed arguments win; an email login never picks up the key. Still no default URL.
+
+### Changed
+- The node classes (`Character`, `Script`, `Say`, `Screen`, `Button`, `Agent`, `Data`, the `On*` hooks, …) are public API from this release, alongside `Flow`.
+
 ## [0.6.0] — 2026-10-10
 
 ### Added

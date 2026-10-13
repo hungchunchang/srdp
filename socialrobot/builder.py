@@ -246,6 +246,33 @@ def OnTimeout(seconds: int, goto: NodeRef = None, *,
                 timeout_var=timeout_var, advance_dataset=advance_dataset, **hook_fields)
 
 
+def OnEnter(goto: NodeRef = None, *, when_var: Optional[str] = None,
+            equals: Optional[str] = None, op: Optional[str] = None,
+            variables: Optional[Dict[str, str]] = None,
+            counters: Optional[Dict[str, int]] = None, **hook_fields) -> Hook:
+    """進入時 — route by VALUE the moment the node is entered.
+
+    A node's OnEnter hooks are read in the order they are listed against the
+    session variables as they stand at entry; the first whose condition holds
+    leaves the node at once (no line, no screen, no clock). One with no
+    `when_var` is the 「其他」 row: put it last. A node none of whose rows hold
+    simply runs as usual::
+
+        route = Script("認識-分流", lines=[])
+        route.hooks = [OnEnter(named, when_var="enroll_result", equals="enrolled"),
+                       OnEnter(taken, when_var="enroll_result", equals="already_bound"),
+                       OnEnter(retry)]
+
+    `op` is the comparison (``eq`` default; ``gt``/``gte``/``lt``/``lte`` are
+    numeric), and `equals` may name another variable as ``{{date}}`` — the same
+    condition every other trigger takes. This replaced staggered value-gated
+    timeouts (0.2 s, 0.4 s, …), whose seconds were only an order but read as
+    timing on the canvas.
+    """
+    return Hook("enter", goto=goto, variables=variables, counters=counters,
+                match_variable=when_var, match_value=equals, match_op=op, **hook_fields)
+
+
 def OnPlaybackDone(goto: NodeRef = None, write_to: Optional[str] = None,
                     when_var: Optional[str] = None, equals: Optional[str] = None,
                     variables: Optional[Dict[str, str]] = None,

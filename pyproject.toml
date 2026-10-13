@@ -1,6 +1,6 @@
 [project]
 name = "socialrobot"
-version = "0.6.0"
+version = "0.8.0"
 description = "Python runtime client for the Social Robot Platform — connect a robot body (NAO, Pi, any Python process) to a live session and drive it."
 readme = "README.md"
 requires-python = ">=3.10"

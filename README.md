@@ -2,7 +2,7 @@
 
 `socialrobot` 讓你的 Python 程式連上一個已經部署好的社會機器人平台：把外部資料送進正在跑的機器人、看它現在在做什麼、叫它說一句話，或讓你自己的硬體（NAO、樹莓派、任何跑得了 Python 的東西）當機器人的身體。
 
-SDK 本身不跑流程、不做語音、不做 AI。這些都在平台上，SDK 是平台的客戶端：每個功能都是對你指定的平台發一個 HTTP 或 WebSocket 請求。角色和流程請在平台的網頁編輯器設計。
+SDK 本身不跑流程、不做語音、不做 AI。這些都在平台上，SDK 是平台的客戶端：每個功能都是對你指定的平台發一個 HTTP 或 WebSocket 請求。流程可以在網頁編輯器畫，也可以用 `Flow` 寫成程式再部署上去（[用程式寫流程](#用程式寫流程flow)）。
 
 > 這個目錄同步鏡像到公開 repo [github.com/hungchunchang/srdp](https://github.com/hungchunchang/srdp)（`main` 分支），供 PyPI 套件頁與外部使用者參考；開發仍在 monorepo 的 `sdk/` 進行，鏡像不接受直接 PR。
 
@@ -74,6 +74,8 @@ print([c["name"] for c in client.list_characters()])
 - 帳號開了兩步驟驗證時，沒帶驗證碼會丟 `MfaRequiredError`；要帶 `mfa_code="123456"`（30 秒內有效）。
 
 寫成會一直跑的程式、或要在校外跑，請用 API key。
+
+什麼都不傳時（`SocialRobotClient()`），讀環境變數 `SR_BASE_URL` 和 `SR_API_KEY`，跟 `socialrobot` 指令一樣：金鑰 export 一次，每支程式都不用再帶。有傳的參數優先；用 email＋密碼登入時不會拿環境變數的金鑰。
 
 ## 叫正在跑的機器人說一句
 
@@ -347,6 +349,77 @@ r = llm.chat.completions.create(model="local_gateway", messages=[{"role": "user"
 print(r.choices[0].message.content)
 ```
 
+## 用程式寫流程：`Flow`
+
+你的 `for` 和 `if` 只在部署那一刻跑一次：它可以產生 20 個題目節點，但機器人跑起來以後，Python 程式早就結束了，機器人跑的是平台上那張流程圖。所以「答錯就再問、最多三次」「依分數走不同的路」這種**要等機器人跑到那裡才知道**的判斷，要用 `Flow` 的區塊寫。它們會編成一般的節點和「進入時」條件，在網頁編輯器裡看得到、改得了：
+
+```python
+from socialrobot import NEXT, Button, Character, Flow, Screen, Script, Say, SocialRobotClient, var
+
+def 問吃藥():
+    return Screen("問吃藥", prompt="第 {{第幾次}} 次：吃藥了嗎？", input_var="吃了", buttons=[
+        Button("吃了", value="yes", goto=NEXT), Button("還沒", value="no", goto=NEXT)])
+
+f = Flow()
+f.then(Script("問候", lines=[Say("早安")]))
+with f.Repeat(3, counter="第幾次", until=var("吃了") == "yes"):
+    f.then(問吃藥())
+with f.If(var("吃了") == "yes"):
+    f.then(Script("好", lines=[Say("太好了")]))
+with f.Else():
+    f.then(Script("提醒家人", lines=[Say("我請家人來看看")]))
+
+with SocialRobotClient() as client:            # 讀 SR_BASE_URL、SR_API_KEY
+    Character(name="吃藥", nodes=f.nodes).deploy(client, in_place=True)
+```
+
+- `f.then(節點)`：接在前一個後面（前一個的「正常結束」走到它）。按鈕或中斷條件的 `goto=NEXT` 也一樣，指到下一個接上的節點。
+- `with f.If(條件):`、`f.Elif(條件)`、`f.Else()`：一個不說話的節點，「進入時」依序比對條件，第一個成立的走；都不成立走 `Else`，沒有 `Else` 就接到區塊後面。
+- `with f.Repeat(n, counter="次數", until=條件):`：跑 n 次，`{{次數}}` 是第幾次（從 1 開始），可以念出來；有 `until` 的話，每一輪跑完先看它，成立就提早離開。同一個場次再走到這裡，會從 1 重新數。
+- `with f.While(條件):`：條件成立就跑一輪，不成立就往下。
+- `with f.ForEach("題庫"):`：資料節點裡的結構，一列跑一輪，`{{欄位}}`、`{{題庫.序號}}`、`{{題庫.總數}}` 都讀得到；跑完最後一列往下，並回到第一列，下次從頭。
+- 條件：`var("x") == "yes"` 比文字；`>`、`>=`、`<`、`<=` 比數字，另一邊可以是 `var("門檻")`；`!=` 只能用在沒有 `Elif` 的 `If` 和 `While`。沒有 `and`／`or`：兩個條件就巢狀兩個 `If`。
+- 用 Python 自己的 `if`、`and`、`not` 去判斷 `var(...)` 會直接報錯，因為那時候還沒有值。
+- `f.nodes` 是全部的節點；還沒接上的出口會接到最後一個「結束」節點。把它們放在角色節點清單的最後面。
+- `Repeat` 最多 50 次（檢查節點上一次一列）；更多請用 `ForEach` 走資料表。
+
+這些區塊只能組合流程圖本來就有的功能。要在執行時跑你自己的程式，用下面的程式節點。
+
+## 程式節點：機器人跑到這裡時問你的程式
+
+自己的計分公式、從自己的 API 挑題、呼叫自己的模型——流程圖做不到的判斷，交給你自己跑的程式。機器人走到程式節點時，平台把目前的變數送給它；它回傳的東西寫成變數，再依它選的出口往下走。
+
+你的程式（在筆電、實驗室電腦都可以，不用公開網址）：
+
+```python
+from socialrobot import Answer, SocialRobotClient
+
+def 挑下一題(call):                       # call.variables、call.node、call.session_id
+    score = int(call.variables.get("分數", 0))
+    if score >= 60:
+        return Answer(exit="過關", say=f"{score} 分，過關了")
+    return Answer(exit="再一題", variables={"題目": pick_question(score)})
+
+SocialRobotClient().serve({"挑下一題": 挑下一題})   # 一直跑，Ctrl-C 結束；斷線會自己重連
+```
+
+流程（用 `Flow`，或在網頁編輯器：腳本分頁最上面的「程式」填程式名稱）：
+
+```python
+from socialrobot import Program
+
+done = Script("過關", lines=[Say("{{program_say}}")])
+f.then(Program("挑題", step="挑下一題", exits={"過關": done}, seconds=10))
+f.then(Script("出題", lines=[Say("{{題目}}")]))      # 其他出口（再一題）走這裡
+```
+
+- 回傳 `Answer(exit=, say=, variables=)`，或 dict、只有出口的字串、`None`；函式可以是 `async`。
+- 平台先寫好變數：你的 `variables`、`{{program_exit}}`、`{{program_say}}`，再走出口。`exits` 對到的走那裡，其他走 `otherwise`。
+- **程式沒開、超過 `seconds`、或丟出例外**：走 `no_reply`，原因在 `{{program_error}}`（`offline`／`timeout`／例外的文字）。一定要接，不然那天沒人開程式，機器人就停在那裡（流程檢查會提醒）。
+- 只會問到**你帳號**的機器人；平台送出的是 `{{}}` 讀得到的變數，包括語音轉出來的文字。
+- `client.programs()`：現在連著的程式名稱。
+
+
 ## 把流程放進 git：命令列工具
 
 裝了 SDK 就有 `socialrobot` 這個指令。匯出的就是平台自己的匯出檔，不掉資料（節點、台詞、AI 設定、便利貼、畫布排列）。
@@ -378,7 +451,7 @@ socialrobot import guide.json                     # 或匯入成一個新的私�
 | `get_scripts(workflow_id)`、`bulk_scripts(...)`、`update_script(...)` | 腳本節點的台詞 |
 | `robot_profiles()` | 平台支援的機型和各自的硬體 |
 
-`socialrobot.builder`（`Character`、`Script`、`Say`…）還 import 得到，但它是平台自己建測試角色用的，不是公開 API，不保證相容。
+節點類別（`Character`、`Script`、`Say`、`Screen`、`Button`、`Agent`、`OnEnter`、`OnTimeout`…）從 0.7.0 起是公開 API，跟 `Flow` 一起用；寫法見[用程式寫流程](#用程式寫流程flow)。
 
 ## MCP server
 
